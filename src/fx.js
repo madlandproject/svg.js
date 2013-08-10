@@ -1,3 +1,35 @@
+// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+
+// requestAnimationFrame polyfill by Erik Möller. fixes from Paul Irish and Tino Zijdel
+
+// MIT license
+
+(function() {
+    var lastTime = 0;
+    var vendors = ['ms', 'moz', 'webkit', 'o'];
+    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+            || window[vendors[x]+'CancelRequestAnimationFrame'];
+    }
+
+    if (!window.requestAnimationFrame)
+        window.requestAnimationFrame = function(callback, element) {
+            var currTime = new Date().getTime();
+            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+                timeToCall);
+            lastTime = currTime + timeToCall;
+            return id;
+        };
+
+    if (!window.cancelAnimationFrame)
+        window.cancelAnimationFrame = function(id) {
+            clearTimeout(id);
+        };
+}());
+
 SVG.FX = function(element) {
   /* store target element */
   this.target = element
@@ -147,25 +179,34 @@ SVG.extend(SVG.FX, {
           , finish    = start + d
   
         /* start animation */
-        fx.interval = setInterval(function(){
-          // This code was borrowed from the emile.js micro framework by Thomas Fuchs, aka MadRobby.
-          var time = new Date().getTime()
-            , pos = time > finish ? 1 : (time - start) / d
-  
-          /* process values */
-          fx.to(pos)
-  
-          /* finish off animation */
-          if (time > finish) {
-            if (fx._plot)
-              element.plot(new SVG.PointArray(fx._plot.destination).settle())
+        fx.render = function(){
+            // This code was borrowed from the emile.js micro framework by Thomas Fuchs, aka MadRobby.
+            var time = new Date().getTime()
+                , pos = time > finish ? 1 : (time - start) / d
 
-            clearInterval(fx.interval)
-            fx._after ? fx._after.apply(element, [fx]) : fx.stop()
-          }
-  
-        }, d > interval ? interval : d)
-        
+            /* process values */
+            fx.to(pos)
+
+            /* finish off animation */
+            if (time > finish) {
+                if (fx._plot)
+                    element.plot(new SVG.PointArray(fx._plot.destination).settle())
+
+                window.cancelAnimationFrame(fx.interval);
+
+                fx._after ? fx._after.apply(element, [fx]) : fx.stop()
+            } else {
+
+                if ( fx.interval !== null && fx.interval !== undefined)
+                    window.cancelAnimationFrame(fx.interval)
+
+                fx.interval = window.requestAnimationFrame(fx.render);
+            }
+        }
+
+        // start off animation
+        fx.interval = window.requestAnimationFrame(fx.render);
+
       }, delay || 0)
     }
     

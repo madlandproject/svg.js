@@ -1,4 +1,4 @@
-/* svg.js v0.32 - svg regex default color array number viewbox bbox rbox element parent container fx event defs group arrange mask clip gradient doc shape use rect ellipse line poly path plotable image text textpath nested sugar set memory loader - svgjs.com/license */
+/* svg.js v0.30-4-g945c1a0 - svg regex default color array number viewbox bbox rbox element parent container fx event defs group arrange mask clip gradient doc shape use rect ellipse line poly path plotable image text textpath nested sugar set memory loader - svgjs.com/license */
 ;(function() {
 
   this.SVG = function(element) {
@@ -1367,25 +1367,36 @@
             , finish    = start + d
     
           /* start animation */
-          fx.interval = setInterval(function(){
-            // This code was borrowed from the emile.js micro framework by Thomas Fuchs, aka MadRobby.
-            var time = new Date().getTime()
-              , pos = time > finish ? 1 : (time - start) / d
-    
-            /* process values */
-            fx.to(pos)
-    
-            /* finish off animation */
-            if (time > finish) {
-              if (fx._plot)
-                element.plot(new SVG.PointArray(fx._plot.destination).settle())
+          fx.render = function(){
+              // This code was borrowed from the emile.js micro framework by Thomas Fuchs, aka MadRobby.
+              var time = new Date().getTime()
+                  , pos = time > finish ? 1 : (time - start) / d
   
-              clearInterval(fx.interval)
-              fx._after ? fx._after.apply(element, [fx]) : fx.stop()
-            }
-    
-          }, d > interval ? interval : d)
-          
+              /* process values */
+              fx.to(pos)
+  
+              /* finish off animation */
+              if (time > finish) {
+                  if (fx._plot)
+                      element.plot(new SVG.PointArray(fx._plot.destination).settle())
+  
+                  window.cancelAnimationFrame(fx.interval);
+  
+                  fx._after ? fx._after.apply(element, [fx]) : fx.stop()
+              } else {
+  
+                  if ( fx.interval !== null && fx.interval !== undefined) {
+                      console.log('frame queued, cancel now');
+                      window.cancelAnimationFrame(fx.interval)
+                  }
+  
+                  fx.interval = window.requestAnimationFrame(fx.render);
+              }
+          }
+  
+          // start off animation
+          fx.interval = window.requestAnimationFrame(fx.render);
+  
         }, delay || 0)
       }
       
